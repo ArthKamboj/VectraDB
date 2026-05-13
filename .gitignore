@@ -1,1 +1,68 @@
+# Compiled object files
+*.o
+*.obj
+*.lo
+*.slo
+
+# Executables
 *.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Static / Dynamic libraries
+*.lib
+*.a
+*.la
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Debug / profiling files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Build folders
+/build/
+/bin/
+/obj/
+/out/
+/cmake-build-*/
+/Debug/
+/Release/
+
+# CMake files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+Makefile
+
+# Autotools
+autom4te.cache/
+aclocal.m4
+m4/
+configure
+
+# Logs
+*.log
+
+# IDE / Editor files
+.vscode/
+.idea/
+*.code-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*~
