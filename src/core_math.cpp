@@ -46,35 +46,52 @@ class VectorMath {
         }
 };
 
+struct Document {
+    size_t id;
+    Vector embedding;
+    string category;
+    bool is_deleted;
+};
+
 struct SearchResult {
     size_t id;
     float distance;
+    string category;
 
     bool operator<(const SearchResult& other) const {
         return distance < other.distance; 
     }
 };
 
-class FlatIndex {
+class DocumentStore {
     private:
-        vector<Vector> data;
+        vector<Document> documents;
 
     public:
-        void add(const Vector& vec) {
-            data.push_back(vec);
+        void add(const Vector& vec, const string& category) {
+            size_t new_id = documents.size();
+            documents.push_back({new_id, vec, category, false});
         }
-        vector<SearchResult> search(const Vector& query, int k) {
+        void remove(size_t id) {
+            if(id<documents.size()) documents[id].is_deleted = true;
+        }
+
+        vector<SearchResult> search_with_filter(const Vector& query, int k, const string& filter_category) {
             priority_queue<SearchResult> max_heap;
 
-            for(size_t i=0; i<data.size(); i++) {
-                float dist = VectorMath::euclidean_distance(query, data[i]);
-                if(max_heap.size()<k) {
-                    max_heap.push({i, dist});
-                }
+            for (const auto& doc : documents) {
+                
+                if(doc.is_deleted) continue;
+                if(!filter_category.empty() && doc.category!=filter_category) continue;
 
+                float dist = VectorMath::euclidean_distance(query, doc.embedding);
+
+                if(max_heap.size()<k) {
+                    max_heap.push({doc.id, dist, doc.category});
+                }
                 else if(dist < max_heap.top().distance) {
                     max_heap.pop();
-                    max_heap.push({i, dist});
+                    max_heap.push({doc.id, dist, doc.category});
                 }
             }
 
@@ -87,29 +104,34 @@ class FlatIndex {
             reverse(results.begin(), results.end());
             return results;
         }
-        size_t size() const {
-            return data.size();
-        }
 };
 
 int main() {
 
-    FlatIndex db;
+    DocumentStore db;
     
-    db.add({1.0f, 2.0f, 3.0f});
-    db.add({1.5f, 2.5f, 3.5f});
-    db.add({8.0f, 8.0f, 8.0f});
-    db.add({0.9f, 2.1f, 3.1f});
-    db.add({-1.0f, -2.0f, -3.0f});
 
+    db.add({1.0f, 2.0f, 3.0f}, "electronics");
+    db.add({1.5f, 2.5f, 3.5f}, "clothing");
+    db.add({8.0f, 8.0f, 8.0f}, "electronics");
+    db.add({0.9f, 2.1f, 3.1f}, "clothing");
+    
     Vector query = {1.0f, 2.0f, 3.0f};
-    int k=2;
 
-    cout << "Searching for top " << k << " matches...\n";
-    vector<SearchResult> results = db.search(query, k);
 
-    for (const auto& res : results) {
-        std::cout << "Vector ID: " << res.id << " | Distance: " << res.distance << "\n";
+    cout << "--- All Active Documents ---\n";
+    auto results1 = db.search_with_filter(query, 2, "");
+    for (const auto& res : results1) {
+        cout << "ID: " << res.id << " | Dist: " << res.distance << " | Cat: " << res.category << "\n";
+    }
+
+
+    cout << "\n--- Deleting ID 0 & Filtering by 'clothing' ---\n";
+    db.remove(0);
+    
+    auto results2 = db.search_with_filter(query, 2, "clothing");
+    for (const auto& res : results2) {
+        cout << "ID: " << res.id << " | Dist: " << res.distance << " | Cat: " << res.category << "\n";
     }
 
     return 0;
