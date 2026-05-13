@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <queue>
 #include <algorithm>
+#include <random>
 
 using namespace std;
 
@@ -103,6 +104,56 @@ class DocumentStore {
 
             reverse(results.begin(), results.end());
             return results;
+        }
+};
+
+struct Cluster {
+    Vector centroid;
+    vector<size_t> document_ids;
+};
+
+class IVFIndex {
+    private:
+        vector<Cluster> clusters;
+
+    public:
+        void train(const vector<Vector>& training_data, int num_clusters, int iterations=10) {
+            if(training_data.size() < num_clusters) {
+                throw runtime_error("Not enough data to form clusters");
+            }
+
+            mt19937 rng(42);
+            uniform_int_distribution<size_t> dist(0, training_data.size()-1);
+
+            for (int i=0; i<num_clusters; i++) {
+                Cluster c;
+                c.centroid = training_data[dist(rng)];
+                clusters.push_back(c);
+            }
+
+            for (int iter = 0; iter < iterations; ++iter) {
+                vector<vector<Vector>> new_buckets(num_clusters);
+
+                for(const auto& vec : training_data) {
+                    int best_cluster;
+                    new_buckets[best_cluster].push_back(vec);
+                }
+
+                for(int i=0; i<num_clusters; ++i) {
+                    if(new_buckets[i].empty()) continue;
+                    Vector new_centroid(training_data[0].size(), 0.0f);
+                    for (const auto& vec : new_buckets[i]) {
+                        for (size_t d = 0; d < vec.size(); ++d) {
+                            new_centroid[d] += vec[d];
+                        }
+                    }
+                    for (size_t d = 0; d < new_centroid.size(); ++d) {
+                        new_centroid[d] /= new_buckets[i].size();
+                    }
+                    clusters[i].centroid = new_centroid;
+                }
+            }
+            cout << "IVF Index trained with " << num_clusters << " clusters.\n";
         }
 };
 
