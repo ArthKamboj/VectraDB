@@ -2,6 +2,8 @@
 #include <vector>
 #include <cmath>
 #include <stdexcept>
+#include <queue>
+#include <algorithm>
 
 using namespace std;
 
@@ -44,11 +46,71 @@ class VectorMath {
         }
 };
 
+struct SearchResult {
+    size_t id;
+    float distance;
+
+    bool operator<(const SearchResult& other) const {
+        return distance < other.distance; 
+    }
+};
+
+class FlatIndex {
+    private:
+        vector<Vector> data;
+
+    public:
+        void add(const Vector& vec) {
+            data.push_back(vec);
+        }
+        vector<SearchResult> search(const Vector& query, int k) {
+            priority_queue<SearchResult> max_heap;
+
+            for(size_t i=0; i<data.size(); i++) {
+                float dist = VectorMath::euclidean_distance(query, data[i]);
+                if(max_heap.size()<k) {
+                    max_heap.push({i, dist});
+                }
+
+                else if(dist < max_heap.top().distance) {
+                    max_heap.pop();
+                    max_heap.push({i, dist});
+                }
+            }
+
+            vector<SearchResult> results;
+            while(!max_heap.empty()) {
+                results.push_back(max_heap.top());
+                max_heap.pop();
+            }
+
+            reverse(results.begin(), results.end());
+            return results;
+        }
+        size_t size() const {
+            return data.size();
+        }
+};
+
 int main() {
 
-    Vector v1 = {1.5f, 2.0f, 3.1f};
-    Vector v2 = {1.0f, 2.5f, 3.0f};
+    FlatIndex db;
+    
+    db.add({1.0f, 2.0f, 3.0f});
+    db.add({1.5f, 2.5f, 3.5f});
+    db.add({8.0f, 8.0f, 8.0f});
+    db.add({0.9f, 2.1f, 3.1f});
+    db.add({-1.0f, -2.0f, -3.0f});
 
-    cout << "Euclidean Distance: " << VectorMath::euclidean_distance(v1, v2) << "\n";
-    cout << "Cosine Similarity:  " << VectorMath::cosine_similarity(v1, v2) << "\n";
+    Vector query = {1.0f, 2.0f, 3.0f};
+    int k=2;
+
+    cout << "Searching for top " << k << " matches...\n";
+    vector<SearchResult> results = db.search(query, k);
+
+    for (const auto& res : results) {
+        std::cout << "Vector ID: " << res.id << " | Distance: " << res.distance << "\n";
+    }
+
+    return 0;
 }
