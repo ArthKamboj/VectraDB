@@ -4,6 +4,8 @@
 *.lo
 *.slo
 *.wal
+*.h
+*.cc
 
 # Executables
 *.exe
