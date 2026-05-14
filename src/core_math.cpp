@@ -76,7 +76,10 @@ class DocumentStore {
         void remove(size_t id) {
             if(id<documents.size()) documents[id].is_deleted = true;
         }
-
+        const Document& get_document(size_t id) const {
+            if (id >= documents.size()) throw out_of_range("Invalid ID");
+            return documents[id];
+        }
         vector<SearchResult> search_with_filter(const Vector& query, int k, const string& filter_category) {
             priority_queue<SearchResult> max_heap;
 
@@ -169,6 +172,49 @@ class IVFIndex {
             return best_idx;
         }
 
+        vector<SearchResult> search (const Vector& query, int k, int nprobe, DocumentStore& store, const string& filter="") {
+            priority_queue<pair<float, int>> closest_clusters;
+            
+            for(size_t i=0; i<closest_clusters.size(); i++) {
+                float dist = VectorMath::euclidean_distance(query, clusters[i].centroid);
+                closest_clusters.push({-dist, i});
+            }
+
+            vector<size_t> candidate_ids;
+            for (int p = 0; p < nprobe && !closest_clusters.empty(); ++p) {
+                int cluster_idx = closest_clusters.top().second;
+                closest_clusters.pop();
+                
+                for (size_t doc_id : clusters[cluster_idx].document_ids) {
+                    candidate_ids.push_back(doc_id);
+                }
+            }
+
+            priority_queue<SearchResult> max_heap;
+            for(size_t id : candidate_ids) {
+                const Document& doc = store.get_document(id);
+
+                if(doc.is_deleted) continue;
+                if(!filter.empty() && doc.category!=filter) continue;
+
+                float dist = VectorMath::euclidean_distance(query, doc.embedding);
+                if (max_heap.size() < k) {
+                    max_heap.push({doc.id, dist, doc.category});
+                }
+                else if (dist < max_heap.top().distance) {
+                    max_heap.pop();
+                    max_heap.push({doc.id, dist, doc.category});
+                }
+            }
+
+            vector<SearchResult> results;
+            while(!max_heap.empty()) {
+                results.push_back(max_heap.top());
+                max_heap.pop();
+            }
+            reverse(results.begin(), results.end());
+            return results;
+        }   
 };
 
 int main() {
