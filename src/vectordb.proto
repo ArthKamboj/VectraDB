@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package vectordb;
+
+// cector msg format
+message Vector {
+  repeated float elements = 1;
+}
+
+// insert request
+message InsertRequest {
+  Vector embedding = 1;
+  string category = 2;
+}
+
+message InsertResponse {
+  uint64 id = 1;
+  bool success = 2;
+}
+
+// search request
+message SearchRequest {
+  Vector query = 1;
+  int32 k = 2;
+  int32 nprobe = 3;
+  string filter_category = 4;
+}
+
+message SearchResult {
+  uint64 id = 1;
+  float distance = 2;
+  string category = 3;
+}
+
+message SearchResponse {
+  repeated SearchResult results = 1;
+}
+
+// api endpoints
+service VectorDatabase {
+  rpc Insert(InsertRequest) returns (InsertResponse);
+  rpc Search(SearchRequest) returns (SearchResponse);
+}
