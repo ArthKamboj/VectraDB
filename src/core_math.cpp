@@ -7,6 +7,7 @@
 #include <random>
 #include <mutex>
 #include <shared_mutex>
+#include <fstream>
 
 using namespace std;
 
@@ -56,6 +57,11 @@ struct Document {
     bool is_deleted;
 };
 
+enum class Opcode : char {
+    ADD = 'A',
+    REMOVE = 'R'
+};
+
 struct SearchResult {
     size_t id;
     float distance;
@@ -66,36 +72,122 @@ struct SearchResult {
     }
 };
 
-class ThreadSafeDocumentStore {
-    private:
-        vector<Document> documents;
-        mutable shared_mutex store_mutex; 
+class PersistentDocumentStore {
+private:
+    vector<Document> documents;
+    mutable shared_mutex store_mutex;
+    
+    ofstream wal_file;
+    string wal_path;
 
-    public:
-        size_t add(const Vector& vec, const string& category) {
-            unique_lock<shared_mutex> lock(store_mutex);
-            size_t new_id = documents.size();
-            documents.push_back({new_id, vec, category, false});
-            return new_id;
+    void log_add(const Vector& vec, const string& category) {
+        if (!wal_file.is_open()) return;
+        
+        char op = static_cast<char>(Opcode::ADD);
+        wal_file.write(&op, sizeof(op));
+
+        size_t vec_size = vec.size();
+        wal_file.write(reinterpret_cast<const char*>(&vec_size), sizeof(vec_size));
+        wal_file.write(reinterpret_cast<const char*>(vec.data()), vec_size * sizeof(float));
+
+        size_t str_len = category.length();
+        wal_file.write(reinterpret_cast<const char*>(&str_len), sizeof(str_len));
+        wal_file.write(category.c_str(), str_len);
+        
+        wal_file.flush();
+    }
+
+    void log_remove(size_t id) {
+        if (!wal_file.is_open()) return;
+
+        char op = static_cast<char>(Opcode::REMOVE);
+        wal_file.write(&op, sizeof(op));
+        wal_file.write(reinterpret_cast<const char*>(&id), sizeof(id));
+        
+        wal_file.flush();
+    }
+
+public:
+    PersistentDocumentStore(const string& path) : wal_path(path) {
+        recover_from_wal();
+        wal_file.open(wal_path, ios::binary | ios::app);
+        if (!wal_file) {
+            throw runtime_error("Failed to open WAL file!");
+        }
+    }
+
+    ~PersistentDocumentStore() {
+        if (wal_file.is_open()) wal_file.close();
+    }
+
+    const Document get_document(size_t id) const {
+        shared_lock<shared_mutex> lock(store_mutex);
+        if (id >= documents.size()) throw out_of_range("Invalid ID");
+        return documents[id];
+    }
+
+    void recover_from_wal() {
+        ifstream in_file(wal_path, ios::binary);
+        if (!in_file) {
+            cout << "No existing WAL found. Starting fresh.\n";
+            return;
         }
 
-        void remove(size_t id) {
-            unique_lock<shared_mutex> lock(store_mutex);
-            if (id < documents.size()) {
-                documents[id].is_deleted = true;
+        cout << "Replaying Write-Ahead Log...\n";
+        while (in_file.peek() != EOF) {
+            char op;
+            in_file.read(&op, sizeof(op));
+
+            if (op == static_cast<char>(Opcode::ADD)) {
+                size_t vec_size;
+                in_file.read(reinterpret_cast<char*>(&vec_size), sizeof(vec_size));
+                
+                Vector vec(vec_size);
+                in_file.read(reinterpret_cast<char*>(vec.data()), vec_size * sizeof(float));
+
+                size_t str_len;
+                in_file.read(reinterpret_cast<char*>(&str_len), sizeof(str_len));
+                
+                string category(str_len, '\0');
+                in_file.read(&category[0], str_len);
+
+                size_t new_id = documents.size();
+                documents.push_back({new_id, vec, category, false});
+            } 
+            else if (op == static_cast<char>(Opcode::REMOVE)) {
+                size_t id;
+                in_file.read(reinterpret_cast<char*>(&id), sizeof(id));
+                if (id < documents.size()) {
+                    documents[id].is_deleted = true;
+                }
             }
         }
+        cout << "Recovered " << documents.size() << " documents.\n";
+    }
 
-        const Document get_document(size_t id) const {
-            shared_lock<shared_mutex> lock(store_mutex);
-            if (id >= documents.size()) throw out_of_range("Invalid ID");
-            return documents[id];
-        }
+    size_t add(const Vector& vec, const string& category) {
+        unique_lock<shared_mutex> lock(store_mutex);
         
-        size_t size() const {
-            shared_lock<shared_mutex> lock(store_mutex);
-            return documents.size();
+        size_t new_id = documents.size();
+        documents.push_back({new_id, vec, category, false});
+        
+        log_add(vec, category);
+        return new_id;
+    }
+
+    void remove(size_t id) {
+        unique_lock<shared_mutex> lock(store_mutex);
+        
+        if (id < documents.size() && !documents[id].is_deleted) {
+            documents[id].is_deleted = true;
+            log_remove(id);
         }
+    }
+
+    size_t size() const {
+        shared_lock<shared_mutex> lock(store_mutex);
+        return documents.size();
+    }
 };
 
     struct Cluster {
@@ -160,7 +252,7 @@ class IVFIndex {
             return best_idx;
         }
 
-        vector<SearchResult> search (const Vector& query, int k, int nprobe, ThreadSafeDocumentStore& store, const string& filter="") {
+        vector<SearchResult> search (const Vector& query, int k, int nprobe, PersistentDocumentStore& store, const string& filter="") {
             priority_queue<pair<float, int>> closest_clusters;
             
             for(size_t i=0; i<closest_clusters.size(); i++) {
