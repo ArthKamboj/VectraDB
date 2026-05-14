@@ -5,6 +5,8 @@
 #include <queue>
 #include <algorithm>
 #include <random>
+#include <mutex>
+#include <shared_mutex>
 
 using namespace std;
 
@@ -64,55 +66,41 @@ struct SearchResult {
     }
 };
 
-class DocumentStore {
+class ThreadSafeDocumentStore {
     private:
         vector<Document> documents;
+        mutable shared_mutex store_mutex; 
 
     public:
-        void add(const Vector& vec, const string& category) {
+        size_t add(const Vector& vec, const string& category) {
+            unique_lock<shared_mutex> lock(store_mutex);
             size_t new_id = documents.size();
             documents.push_back({new_id, vec, category, false});
+            return new_id;
         }
+
         void remove(size_t id) {
-            if(id<documents.size()) documents[id].is_deleted = true;
+            unique_lock<shared_mutex> lock(store_mutex);
+            if (id < documents.size()) {
+                documents[id].is_deleted = true;
+            }
         }
-        const Document& get_document(size_t id) const {
+
+        const Document get_document(size_t id) const {
+            shared_lock<shared_mutex> lock(store_mutex);
             if (id >= documents.size()) throw out_of_range("Invalid ID");
             return documents[id];
         }
-        vector<SearchResult> search_with_filter(const Vector& query, int k, const string& filter_category) {
-            priority_queue<SearchResult> max_heap;
-
-            for (const auto& doc : documents) {
-                
-                if(doc.is_deleted) continue;
-                if(!filter_category.empty() && doc.category!=filter_category) continue;
-
-                float dist = VectorMath::euclidean_distance(query, doc.embedding);
-
-                if(max_heap.size()<k) {
-                    max_heap.push({doc.id, dist, doc.category});
-                }
-                else if(dist < max_heap.top().distance) {
-                    max_heap.pop();
-                    max_heap.push({doc.id, dist, doc.category});
-                }
-            }
-
-            vector<SearchResult> results;
-            while(!max_heap.empty()) {
-                results.push_back(max_heap.top());
-                max_heap.pop();
-            }
-
-            reverse(results.begin(), results.end());
-            return results;
+        
+        size_t size() const {
+            shared_lock<shared_mutex> lock(store_mutex);
+            return documents.size();
         }
 };
 
-struct Cluster {
-    Vector centroid;
-    vector<size_t> document_ids;
+    struct Cluster {
+        Vector centroid;
+        vector<size_t> document_ids;
 };
 
 class IVFIndex {
@@ -172,7 +160,7 @@ class IVFIndex {
             return best_idx;
         }
 
-        vector<SearchResult> search (const Vector& query, int k, int nprobe, DocumentStore& store, const string& filter="") {
+        vector<SearchResult> search (const Vector& query, int k, int nprobe, ThreadSafeDocumentStore& store, const string& filter="") {
             priority_queue<pair<float, int>> closest_clusters;
             
             for(size_t i=0; i<closest_clusters.size(); i++) {
@@ -219,31 +207,6 @@ class IVFIndex {
 
 int main() {
 
-    DocumentStore db;
     
-
-    db.add({1.0f, 2.0f, 3.0f}, "electronics");
-    db.add({1.5f, 2.5f, 3.5f}, "clothing");
-    db.add({8.0f, 8.0f, 8.0f}, "electronics");
-    db.add({0.9f, 2.1f, 3.1f}, "clothing");
-    
-    Vector query = {1.0f, 2.0f, 3.0f};
-
-
-    cout << "--- All Active Documents ---\n";
-    auto results1 = db.search_with_filter(query, 2, "");
-    for (const auto& res : results1) {
-        cout << "ID: " << res.id << " | Dist: " << res.distance << " | Cat: " << res.category << "\n";
-    }
-
-
-    cout << "\n--- Deleting ID 0 & Filtering by 'clothing' ---\n";
-    db.remove(0);
-    
-    auto results2 = db.search_with_filter(query, 2, "clothing");
-    for (const auto& res : results2) {
-        cout << "ID: " << res.id << " | Dist: " << res.distance << " | Cat: " << res.category << "\n";
-    }
-
     return 0;
 }
