@@ -8,6 +8,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <fstream>
+#include <unordered_set>
 
 using namespace std;
 
@@ -69,6 +70,10 @@ struct SearchResult {
 
     bool operator<(const SearchResult& other) const {
         return distance < other.distance; 
+    }
+
+    bool operator>(const SearchResult& other) const {
+        return distance > other.distance; 
     }
 };
 
@@ -190,6 +195,93 @@ public:
     }
 };
 
+struct GraphNode {
+    size_t id;
+    vector<size_t> friends;
+};
+
+class NSWGraph {
+    private:
+        vector<GraphNode> nodes;
+        size_t entry_point_id;
+        bool has_entry_point = false;
+        int max_friends = 16; 
+
+    public:
+        vector<SearchResult> search(const Vector& query, int k, const PersistentDocumentStore& store) {
+            if (!has_entry_point) return {};
+
+            unordered_set<size_t> visited;
+            
+            priority_queue<SearchResult, vector<SearchResult>, greater<SearchResult>> candidates;
+            
+            priority_queue<SearchResult> top_results;
+
+            const Document& entry_doc = store.get_document(entry_point_id);
+            float entry_dist = VectorMath::euclidean_distance(query, entry_doc.embedding);
+            
+            candidates.push({entry_point_id, entry_dist, entry_doc.category});
+            top_results.push({entry_point_id, entry_dist, entry_doc.category});
+            visited.insert(entry_point_id);
+
+            while (!candidates.empty()) {
+                SearchResult current = candidates.top();
+                candidates.pop();
+                if (current.distance > top_results.top().distance && top_results.size() == k) {
+                    break; 
+                }
+
+                for (size_t friend_id : nodes[current.id].friends) {
+                    if (visited.find(friend_id) != visited.end()) continue;
+                    visited.insert(friend_id);
+
+                    const Document& friend_doc = store.get_document(friend_id);
+                    if (friend_doc.is_deleted) continue;
+
+                    float dist = VectorMath::euclidean_distance(query, friend_doc.embedding);
+
+                    if (top_results.size() < k || dist < top_results.top().distance) {
+                        candidates.push({friend_id, dist, friend_doc.category});
+                        top_results.push({friend_id, dist, friend_doc.category});
+                        
+                        if (top_results.size() > k) {
+                            top_results.pop();
+                        }
+                    }
+                }
+            }
+
+            vector<SearchResult> results;
+            while (!top_results.empty()) {
+                results.push_back(top_results.top());
+                top_results.pop();
+            }
+            reverse(results.begin(), results.end());
+            return results;
+        }
+
+        void add_node(size_t new_id, const PersistentDocumentStore& store) {
+            if (new_id >= nodes.size()) {
+                nodes.resize(new_id + 1);
+            }
+            nodes[new_id].id = new_id;
+
+            if (!has_entry_point) {
+                entry_point_id = new_id;
+                has_entry_point = true;
+                return;
+            }
+
+            const Document& new_doc = store.get_document(new_id);
+            vector<SearchResult> closest_neighbors = search(new_doc.embedding, max_friends, store);
+
+            for (const auto& neighbor : closest_neighbors) {
+                nodes[new_id].friends.push_back(neighbor.id);
+                nodes[neighbor.id].friends.push_back(new_id);
+            }
+        }
+};
+
     struct Cluster {
         Vector centroid;
         vector<size_t> document_ids;
@@ -299,6 +391,23 @@ class IVFIndex {
 
 int main() {
 
+    string wal_file = "vectordb.wal";
+
+    {
+        cout << "--- First Run ---\n";
+        PersistentDocumentStore db(wal_file);
+        if (db.size() == 0) {
+            cout << "Adding data...\n";
+            db.add({1.1f, 2.2f, 3.3f}, "tech");
+            db.add({4.4f, 5.5f, 6.6f}, "art");
+            db.remove(0);
+        }
+    }
+    {
+        cout << "\n--- Second Run (Restart) ---\n";
+        PersistentDocumentStore db_restarted(wal_file);
+        cout << "Database currently holds " << db_restarted.size() << " total entries (including tombstones).\n";
+    }
     
     return 0;
 }

@@ -3,6 +3,7 @@
 *.obj
 *.lo
 *.slo
+*.wal
 
 # Executables
 *.exe
