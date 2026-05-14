@@ -135,7 +135,7 @@ class IVFIndex {
                 vector<vector<Vector>> new_buckets(num_clusters);
 
                 for(const auto& vec : training_data) {
-                    int best_cluster;
+                    int best_cluster = find_closest_centroid(vec);
                     new_buckets[best_cluster].push_back(vec);
                 }
 
@@ -155,6 +155,20 @@ class IVFIndex {
             }
             cout << "IVF Index trained with " << num_clusters << " clusters.\n";
         }
+
+        int find_closest_centroid (const Vector& vec) {
+            int best_idx = -1;
+            float min_dist = numeric_limits<float>::max();
+            for (size_t i=0; i<clusters.size(); i++) {
+                float dist = VectorMath::euclidean_distance(vec, clusters[i].centroid);
+                if (dist < min_dist) {
+                    min_dist = dist;
+                    best_idx = i;
+                }
+            }
+            return best_idx;
+        }
+
 };
 
 int main() {
