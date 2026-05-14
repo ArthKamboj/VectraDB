@@ -344,6 +344,12 @@ class IVFIndex {
             return best_idx;
         }
 
+        void add(size_t doc_id, const Vector& vec) {
+            if (clusters.empty()) throw runtime_error("Index not trained!");
+            int best_cluster = find_closest_centroid(vec);
+            clusters[best_cluster].document_ids.push_back(doc_id);
+        }
+
         vector<SearchResult> search (const Vector& query, int k, int nprobe, PersistentDocumentStore& store, const string& filter="") {
             priority_queue<pair<float, int>> closest_clusters;
             
@@ -388,26 +394,3 @@ class IVFIndex {
             return results;
         }   
 };
-
-int main() {
-
-    string wal_file = "vectordb.wal";
-
-    {
-        cout << "--- First Run ---\n";
-        PersistentDocumentStore db(wal_file);
-        if (db.size() == 0) {
-            cout << "Adding data...\n";
-            db.add({1.1f, 2.2f, 3.3f}, "tech");
-            db.add({4.4f, 5.5f, 6.6f}, "art");
-            db.remove(0);
-        }
-    }
-    {
-        cout << "\n--- Second Run (Restart) ---\n";
-        PersistentDocumentStore db_restarted(wal_file);
-        cout << "Database currently holds " << db_restarted.size() << " total entries (including tombstones).\n";
-    }
-    
-    return 0;
-}
