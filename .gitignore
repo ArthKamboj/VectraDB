@@ -4,8 +4,13 @@
 *.lo
 *.slo
 *.wal
-*.h
-*.cc
+
+# Ignore gRPC/Protobuf generated files
+*.pb.cc
+*.pb.h
+*_pb2.py
+*_pb2_grpc.py
+*_pb2.pyi
 
 # Executables
 *.exe
