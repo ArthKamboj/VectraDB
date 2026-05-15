@@ -20,8 +20,9 @@
 *.x86_64
 *.hex
 
-# python cache files
+# python cache files and folders
 *.pyc
+src/__pychache__/
 
 # Static / Dynamic libraries
 *.lib
