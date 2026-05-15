@@ -4,6 +4,7 @@
 *.lo
 *.slo
 *.wal
+*.bin
 
 # Ignore gRPC/Protobuf generated files
 *.pb.cc
