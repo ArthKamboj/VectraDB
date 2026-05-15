@@ -193,6 +193,71 @@ public:
         shared_lock<shared_mutex> lock(store_mutex);
         return documents.size();
     }
+
+    bool load_snapshot(const string& snapshot_path) {
+        ifstream snap_file(snapshot_path, ios::binary);
+        if (!snap_file) return false;
+
+        size_t num_docs;
+        snap_file.read(reinterpret_cast<char*>(&num_docs), sizeof(num_docs));
+
+        documents.clear();
+        documents.reserve(num_docs);
+
+        for (size_t i = 0; i < num_docs; ++i) {
+            Document doc;
+            
+            snap_file.read(reinterpret_cast<char*>(&doc.id), sizeof(doc.id));
+            snap_file.read(reinterpret_cast<char*>(&doc.is_deleted), sizeof(doc.is_deleted));
+            
+            size_t vec_size;
+            snap_file.read(reinterpret_cast<char*>(&vec_size), sizeof(vec_size));
+            doc.embedding.resize(vec_size);
+            snap_file.read(reinterpret_cast<char*>(doc.embedding.data()), vec_size * sizeof(float));
+
+            size_t str_len;
+            snap_file.read(reinterpret_cast<char*>(&str_len), sizeof(str_len));
+            doc.category.resize(str_len);
+            snap_file.read(&doc.category[0], str_len);
+
+            documents.push_back(doc);
+        }
+        cout << "Loaded snapshot containing " << documents.size() << " documents.\n";
+        return true;
+    }
+
+    void create_snapshot(const string& snapshot_path) {
+        unique_lock<shared_mutex> lock(store_mutex); 
+
+        ofstream snap_file(snapshot_path, ios::binary | ios::trunc);
+        if (!snap_file) throw runtime_error("Failed to create snapshot file!");
+
+        size_t num_docs = documents.size();
+        snap_file.write(reinterpret_cast<const char*>(&num_docs), sizeof(num_docs));
+
+        for (const auto& doc : documents) {
+            snap_file.write(reinterpret_cast<const char*>(&doc.id), sizeof(doc.id));
+            snap_file.write(reinterpret_cast<const char*>(&doc.is_deleted), sizeof(doc.is_deleted));
+            
+            size_t vec_size = doc.embedding.size();
+            snap_file.write(reinterpret_cast<const char*>(&vec_size), sizeof(vec_size));
+            snap_file.write(reinterpret_cast<const char*>(doc.embedding.data()), vec_size * sizeof(float));
+            
+            size_t str_len = doc.category.length();
+            snap_file.write(reinterpret_cast<const char*>(&str_len), sizeof(str_len));
+            snap_file.write(doc.category.c_str(), str_len);
+        }
+
+        snap_file.flush();
+        snap_file.close();
+
+        if (wal_file.is_open()) wal_file.close();
+        wal_file.open(wal_path, ios::binary | ios::trunc);
+        wal_file.close(); 
+        wal_file.open(wal_path, ios::binary | ios::app); 
+
+        cout << "Snapshot saved and WAL compacted successfully.\n";
+    }
 };
 
 struct GraphNode {
