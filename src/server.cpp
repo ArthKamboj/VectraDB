@@ -2,8 +2,9 @@
 #include <memory>
 #include <string>
 #include <grpcpp/grpcpp.h>
-#include "vectordb.grpc.pb.h" 
+#include <random>
 
+#include "vectordb.grpc.pb.h" 
 #include "core_math.cpp" 
 
 using namespace std;
@@ -72,11 +73,20 @@ void RunServer() {
     PersistentDocumentStore my_store("production.wal");
     IVFIndex my_index;
     
+    cout << "Training the IVF Index with initial data...\n";
+    vector<Vector> training_data;
+    mt19937 rng(1337);
+    uniform_real_distribution<float> dist(0.0f, 10.0f);
+    
+    for(int i = 0; i < 100; i++) {
+        training_data.push_back({dist(rng), dist(rng), dist(rng)});
+    }
+    
+    my_index.train(training_data, 5, 10);
     VectorDatabaseImpl service(my_store, my_index);
 
     ServerBuilder builder;
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
-    
     builder.RegisterService(&service);
     
     unique_ptr<Server> server(builder.BuildAndStart());
