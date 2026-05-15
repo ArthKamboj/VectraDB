@@ -353,7 +353,7 @@ class IVFIndex {
         vector<SearchResult> search (const Vector& query, int k, int nprobe, PersistentDocumentStore& store, const string& filter="") {
             priority_queue<pair<float, int>> closest_clusters;
             
-            for(size_t i=0; i<closest_clusters.size(); i++) {
+            for(size_t i=0; i<clusters.size(); i++) {
                 float dist = VectorMath::euclidean_distance(query, clusters[i].centroid);
                 closest_clusters.push({-dist, i});
             }
