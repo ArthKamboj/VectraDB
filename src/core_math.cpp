@@ -113,7 +113,8 @@ private:
     }
 
 public:
-    PersistentDocumentStore(const string& path) : wal_path(path) {
+    PersistentDocumentStore(const string& w_path, const string& s_path) : wal_path(w_path) {
+        load_snapshot(s_path);
         recover_from_wal();
         wal_file.open(wal_path, ios::binary | ios::app);
         if (!wal_file) {

@@ -70,7 +70,7 @@ public:
 void RunServer() {
     string server_address("0.0.0.0:50051");
     
-    PersistentDocumentStore my_store("production.wal");
+    PersistentDocumentStore my_store("production.wal", "snapshot.bin");
     IVFIndex my_index;
     
     cout << "Training the IVF Index with initial data...\n";
