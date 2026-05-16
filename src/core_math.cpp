@@ -9,6 +9,7 @@
 #include <shared_mutex>
 #include <fstream>
 #include <unordered_set>
+#include <immintrin.h>
 
 using namespace std;
 
@@ -32,12 +33,29 @@ class VectorMath {
             if(a.size() != b.size()) {
                 throw runtime_error("Vectors must be of same dimensionality");
             }
-            float sum_sq_diff = 0.0f;
-            for(size_t i=0; i<a.size(); i++) {
-                float diff = a[i]-b[i];
-                sum_sq_diff += diff*diff;
+
+            size_t n=a.size();
+            size_t i=0;
+
+           __m256 sum_vec = _mm256_setzero_ps();
+           for (; i+7<n; i+=8) {
+                __m256 v_a = _mm256_loadu_ps(&a[i]);
+                __m256 v_b = _mm256_loadu_ps(&b[i]);
+                __m256 diff = _mm256_sub_ps(v_a, v_b);
+                __m256 sq_diff = _mm256_mul_ps(diff, diff);
+                sum_vec = _mm256_add_ps(sum_vec, sq_diff);
             }
-            return sqrt(sum_sq_diff);
+
+            alignas(32) float temp[8];
+            _mm256_storeu_ps(temp, sum_vec);
+            float sum = temp[0] + temp[1] + temp[2] + temp[3] + 
+                        temp[4] + temp[5] + temp[6] + temp[7];
+
+            for (; i<n; i++) {
+                float diff = a[i] - b[i];
+                sum += diff*diff;
+            }
+            return sum;
         }
 
         static float cosine_similarity(const Vector& a, const Vector& b) {
