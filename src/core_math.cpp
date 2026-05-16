@@ -369,14 +369,31 @@ class NSWGraph {
         }
 };
 
-struct Cluster {
-        Vector centroid;
-        vector<size_t> document_ids;
-};
-
 struct HNSWNode {
     size_t doc_id;
     Vector embedding;
     int max_layer;
     vector<vector<size_t>> neighbors; 
+};
+
+class HNSWIndex {
+    private:
+        unordered_map<size_t, HNSWNode> nodes;
+        int max_graph_layer = 0;
+
+        const int M = 16;
+        const int M0 = 32;
+        const int ef_search = 50;
+        const double mult = 1/log(1.0*M);
+
+        int generate_random_layer() {
+            double r = ((double) rand() / (RAND_MAX));
+            if (r == 0.0) r = 0.00001;
+            return (int)(-log(r)*mult);
+        }
+
+    public:
+        HNSWIndex() {
+            srand(1337);
+        }
 };
