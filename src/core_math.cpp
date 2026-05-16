@@ -9,6 +9,9 @@
 #include <shared_mutex>
 #include <fstream>
 #include <unordered_set>
+#include <unordered_map>
+#include <queue>
+#include <cmath>
 #include <immintrin.h>
 
 using namespace std;
@@ -366,115 +369,14 @@ class NSWGraph {
         }
 };
 
-    struct Cluster {
+struct Cluster {
         Vector centroid;
         vector<size_t> document_ids;
 };
 
-class IVFIndex {
-    private:
-        vector<Cluster> clusters;
-
-    public:
-        void train(const vector<Vector>& training_data, int num_clusters, int iterations=10) {
-            if(training_data.size() < num_clusters) {
-                throw runtime_error("Not enough data to form clusters");
-            }
-
-            mt19937 rng(42);
-            uniform_int_distribution<size_t> dist(0, training_data.size()-1);
-
-            for (int i=0; i<num_clusters; i++) {
-                Cluster c;
-                c.centroid = training_data[dist(rng)];
-                clusters.push_back(c);
-            }
-
-            for (int iter = 0; iter < iterations; ++iter) {
-                vector<vector<Vector>> new_buckets(num_clusters);
-
-                for(const auto& vec : training_data) {
-                    int best_cluster = find_closest_centroid(vec);
-                    new_buckets[best_cluster].push_back(vec);
-                }
-
-                for(int i=0; i<num_clusters; ++i) {
-                    if(new_buckets[i].empty()) continue;
-                    Vector new_centroid(training_data[0].size(), 0.0f);
-                    for (const auto& vec : new_buckets[i]) {
-                        for (size_t d = 0; d < vec.size(); ++d) {
-                            new_centroid[d] += vec[d];
-                        }
-                    }
-                    for (size_t d = 0; d < new_centroid.size(); ++d) {
-                        new_centroid[d] /= new_buckets[i].size();
-                    }
-                    clusters[i].centroid = new_centroid;
-                }
-            }
-            cout << "IVF Index trained with " << num_clusters << " clusters.\n";
-        }
-
-        int find_closest_centroid (const Vector& vec) {
-            int best_idx = -1;
-            float min_dist = numeric_limits<float>::max();
-            for (size_t i=0; i<clusters.size(); i++) {
-                float dist = VectorMath::euclidean_distance(vec, clusters[i].centroid);
-                if (dist < min_dist) {
-                    min_dist = dist;
-                    best_idx = i;
-                }
-            }
-            return best_idx;
-        }
-
-        void add(size_t doc_id, const Vector& vec) {
-            if (clusters.empty()) throw runtime_error("Index not trained!");
-            int best_cluster = find_closest_centroid(vec);
-            clusters[best_cluster].document_ids.push_back(doc_id);
-        }
-
-        vector<SearchResult> search (const Vector& query, int k, int nprobe, PersistentDocumentStore& store, const string& filter="") {
-            priority_queue<pair<float, int>> closest_clusters;
-            
-            for(size_t i=0; i<clusters.size(); i++) {
-                float dist = VectorMath::euclidean_distance(query, clusters[i].centroid);
-                closest_clusters.push({-dist, i});
-            }
-
-            vector<size_t> candidate_ids;
-            for (int p = 0; p < nprobe && !closest_clusters.empty(); ++p) {
-                int cluster_idx = closest_clusters.top().second;
-                closest_clusters.pop();
-                
-                for (size_t doc_id : clusters[cluster_idx].document_ids) {
-                    candidate_ids.push_back(doc_id);
-                }
-            }
-
-            priority_queue<SearchResult> max_heap;
-            for(size_t id : candidate_ids) {
-                const Document& doc = store.get_document(id);
-
-                if(doc.is_deleted) continue;
-                if(!filter.empty() && doc.category!=filter) continue;
-
-                float dist = VectorMath::euclidean_distance(query, doc.embedding);
-                if (max_heap.size() < k) {
-                    max_heap.push({doc.id, dist, doc.category});
-                }
-                else if (dist < max_heap.top().distance) {
-                    max_heap.pop();
-                    max_heap.push({doc.id, dist, doc.category});
-                }
-            }
-
-            vector<SearchResult> results;
-            while(!max_heap.empty()) {
-                results.push_back(max_heap.top());
-                max_heap.pop();
-            }
-            reverse(results.begin(), results.end());
-            return results;
-        }   
+struct HNSWNode {
+    size_t doc_id;
+    Vector embedding;
+    int max_layer;
+    vector<vector<size_t>> neighbors; 
 };
