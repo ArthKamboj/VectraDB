@@ -48,16 +48,28 @@ public:
         try {
             Vector query(request->query().elements().begin(), request->query().elements().end());
             int k = request->k();
-            int nprobe = request->nprobe();
             string filter = request->filter_category();
 
-            auto results = index.search(query, k, nprobe, store, filter);
+            auto result_ids = index.search(query, k * 5);
 
-            for (const auto& res : results) {
+            int matched = 0;
+            for (size_t id : result_ids) {
+                if (matched >= k) break;
+
+                const auto& doc = store.documents[id];
+
+                if (!filter.empty() && doc.category != filter) {
+                    continue; 
+                }
+
+                float dist = VectorMath::euclidean_distance(query, doc.embedding);
+
                 vectordb::SearchResult* grpc_res = reply->add_results();
-                grpc_res->set_id(res.id);
-                grpc_res->set_distance(res.distance);
-                grpc_res->set_category(res.category);
+                grpc_res->set_id(id);
+                grpc_res->set_distance(dist);
+                grpc_res->set_category(doc.category);
+                
+                matched++;
             }
 
             return Status::OK;
@@ -72,9 +84,9 @@ public:
             reply->set_success(true);
             reply->set_message("Snapshot triggered successfully. WAL compacted to 0 bytes.");
             return grpc::Status::OK;
-        } catch (const std::exception& e) {
+        } catch (const exception& e) {
             reply->set_success(false);
-            reply->set_message(std::string("Snapshot failed: ") + e.what());
+            reply->set_message(string("Snapshot failed: ") + e.what());
             return grpc::Status(grpc::StatusCode::INTERNAL, e.what());
         }
     }
@@ -85,17 +97,7 @@ void RunServer() {
     
     PersistentDocumentStore my_store("production.wal", "snapshot.bin");
     HNSWIndex my_index;
-    
-    cout << "Training the IVF Index with initial data...\n";
-    vector<Vector> training_data;
-    mt19937 rng(1337);
-    uniform_real_distribution<float> dist(0.0f, 10.0f);
-    
-    for(int i = 0; i < 100; i++) {
-        training_data.push_back({dist(rng), dist(rng), dist(rng)});
-    }
-    
-    my_index.train(training_data, 5, 10);
+
     VectorDatabaseImpl service(my_store, my_index);
 
     ServerBuilder builder;
@@ -103,7 +105,7 @@ void RunServer() {
     builder.RegisterService(&service);
     
     unique_ptr<Server> server(builder.BuildAndStart());
-    cout << "Vector Database listening on " << server_address << endl;
+    cout << "Vector Database listening on " << server_address << " with HNSW Graph initialized." << endl;
 
     server->Wait();
 }
