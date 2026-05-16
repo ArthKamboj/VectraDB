@@ -47,6 +47,11 @@ def run():
     print(f"Search completed in {(end_time - start_time) * 1000:.2f} ms!")
     for res in search_response.results:
         print(f"ID: {res.id} | Distance: {res.distance:.4f} | Category: {res.category}")
+    
+    print("\n--- Triggering Background Snapshot ---")
+    snap_req = vectordb_pb2.SnapshotRequest()
+    snap_res = stub.TriggerSnapshot(snap_req)
+    print(f"Server Response: {snap_res.message}")
 
 if __name__ == '__main__':
     run()

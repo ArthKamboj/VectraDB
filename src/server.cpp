@@ -65,6 +65,19 @@ public:
             return Status(grpc::StatusCode::INTERNAL, e.what());
         }
     }
+    
+    grpc::Status TriggerSnapshot(grpc::ServerContext* context, const vectordb::SnapshotRequest* request, vectordb::SnapshotResponse* reply) override {
+        try {
+            store.create_snapshot("snapshot.bin");
+            reply->set_success(true);
+            reply->set_message("Snapshot triggered successfully. WAL compacted to 0 bytes.");
+            return grpc::Status::OK;
+        } catch (const std::exception& e) {
+            reply->set_success(false);
+            reply->set_message(std::string("Snapshot failed: ") + e.what());
+            return grpc::Status(grpc::StatusCode::INTERNAL, e.what());
+        }
+    }
 };
 
 void RunServer() {

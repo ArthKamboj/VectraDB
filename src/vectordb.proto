@@ -40,4 +40,12 @@ message SearchResponse {
 service VectorDatabase {
   rpc Insert(InsertRequest) returns (InsertResponse);
   rpc Search(SearchRequest) returns (SearchResponse);
+  rpc TriggerSnapshot(SnapshotRequest) returns (SnapshotResponse);
+}
+
+message SnapshotRequest {}
+
+message SnapshotResponse {
+  bool success = 1;
+  string message = 2;
 }
