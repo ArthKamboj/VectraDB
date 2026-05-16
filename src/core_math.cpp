@@ -496,5 +496,52 @@ class HNSWIndex {
                     }
                 }
             }
+
+            int start_layer = min(curr_max_layer, new_layer);
+
+            for(int layer = start_layer; layer>=0; --layer) {
+                priority_queue<pair<float, size_t>> candidates;
+                vector<pair<float, size_t>> layer_neighbors;
+                unordered_set<size_t> visited;
+
+                float curr_dist = VectorMath::euclidean_distance(vec, nodes[curr_node].embedding);
+                candidates.push({-curr_dist, curr_node});
+                visited.insert(curr_node);
+
+                int max_connections = (layer == 0) ? M0 : M;
+                
+                while (!candidates.empty() && layer_neighbors.size() < max_connections) {
+                    auto current = candidates.top();
+                    candidates.pop();
+                    float dist = -current.first;
+                    size_t c_node = current.second;
+
+                    layer_neighbors.push_back({dist, c_node});
+
+                    for (size_t neighbor_id : nodes[c_node].neighbors[layer]) {
+                        if (visited.find(neighbor_id) == visited.end()) {
+                            visited.insert(neighbor_id);
+                            float n_dist = VectorMath::euclidean_distance(vec, nodes[neighbor_id].embedding);
+                            candidates.push({-n_dist, neighbor_id});
+                        }
+                    }
+                }
+
+                for (auto& n : layer_neighbors) {
+                    size_t neighbor_id = n.second;
+                    nodes[doc_id].neighbors[layer].push_back(neighbor_id);
+                    nodes[neighbor_id].neighbors[layer].push_back(doc_id);
+                }
+
+                if (!layer_neighbors.empty()) {
+                    curr_node = layer_neighbors[0].second; 
+                }
+            }
+
+            if (new_layer > curr_max_layer) {
+                enter_point_id = doc_id;
+                max_graph_layer = new_layer;
+            }
+
         }
 };
