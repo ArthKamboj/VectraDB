@@ -380,6 +380,7 @@ class HNSWIndex {
     private:
         unordered_map<size_t, HNSWNode> nodes;
         int max_graph_layer = 0;
+        size_t enter_point_id = 0;
 
         const int M = 16;
         const int M0 = 32;
@@ -395,5 +396,32 @@ class HNSWIndex {
     public:
         HNSWIndex() {
             srand(1337);
+        }
+
+        void train(const vector<Vector>& dummy_data, int clusters, int iter) {
+            cout << "HNSW index initialized. No training required.\n";
+        }
+
+        vector<size_t> search(const Vector& query, int k) {
+            if (nodes.empty()) return {};
+
+            size_t curr_node = enter_point_id;
+            float curr_dist = VectorMath::euclidean_distance(query, nodes[curr_node].embedding);
+
+            for (int layer=max_graph_layer; layer>0; --layer) {
+                bool changed = true;
+                while (changed) {
+                    changed = false;
+                    for(size_t neighbour_id : nodes[curr_node].neighbors[layer]) {
+                        float dist = VectorMath::euclidean_distance(query, nodes[neighbour_id].embedding);
+                        if (dist < curr_dist) {
+                            curr_dist = dist;
+                            curr_node = neighbour_id;
+                            changed = true;
+                        }
+                    }
+                }
+            }
+
         }
 };
