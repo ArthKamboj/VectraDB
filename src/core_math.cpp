@@ -423,5 +423,41 @@ class HNSWIndex {
                 }
             }
 
+            priority_queue<pair<float, size_t>> candidates;
+            priority_queue<pair<float, size_t>, vector<pair<float, size_t>>, greater<pair<float, size_t>>> results;
+
+            unordered_set<size_t> visited;
+
+            candidates.push({curr_dist, curr_node});
+            results.push({curr_dist, curr_node});
+            visited.insert(curr_node);
+
+            while (!candidates.empty()) {
+                auto current = candidates.top();
+                candidates.pop();
+
+                if (current.first > results.top().first && results.size() >= ef_search) break;
+
+                for (size_t neighbour_id : nodes[current.second].neighbors[0]) {
+                    if (visited.find(neighbour_id) == visited.end()) {
+                        visited.insert(neighbour_id);
+                        float dist = VectorMath::euclidean_distance(query, nodes[neighbour_id].embedding);
+
+                        if (results.size() < ef_search || dist < results.top().first) {
+                            candidates.push({dist, neighbour_id});
+                            results.push({dist, neighbour_id});
+
+                            if (results.size() > ef_search) results.pop();
+                        }
+                    }
+                }
+            }
+
+            vector<size_t> final_results;
+            while (!results.empty() && final_results.size() < k) {
+                final_results.push_back(results.top().second);
+                results.pop();
+            }
+            return final_results;
         }
 };
