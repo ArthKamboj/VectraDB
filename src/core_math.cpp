@@ -460,4 +460,41 @@ class HNSWIndex {
             }
             return final_results;
         }
+
+        void add(size_t doc_id, const Vector& vec) {
+            int new_layer = generate_random_layer();
+
+            HNSWNode new_node;
+            new_node.doc_id = doc_id;
+            new_node.embedding = vec;
+            new_node.max_layer = new_layer;
+            new_node.neighbors.resize(new_layer + 1);
+
+            if (nodes.empty()) {
+                enter_point_id = doc_id;
+                max_graph_layer = new_layer;
+                nodes[doc_id] = new_node;
+                return;
+            }
+
+            nodes[doc_id] = new_node;
+            size_t curr_node = enter_point_id;
+            int curr_max_layer = max_graph_layer;
+
+            for (int layer = curr_max_layer; layer > new_layer; --layer) {
+                bool changed = true;
+                float curr_dist = VectorMath::euclidean_distance(vec, nodes[curr_node].embedding);
+                while (changed) {
+                    changed = false;
+                    for (size_t neighbor_id : nodes[curr_node].neighbors[layer]) {
+                        float dist = VectorMath::euclidean_distance(vec, nodes[neighbor_id].embedding);
+                        if (dist < curr_dist) {
+                            curr_dist = dist;
+                            curr_node = neighbor_id;
+                            changed = true;
+                        }
+                    }
+                }
+            }
+        }
 };
