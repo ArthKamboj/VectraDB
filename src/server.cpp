@@ -22,10 +22,10 @@ using vectordb::SearchResponse;
 class VectorDatabaseImpl final : public VectorDatabase::Service {
 private:
     PersistentDocumentStore& store;
-    IVFIndex& index;
+    HNSWIndex& index;
 
 public:
-    VectorDatabaseImpl(PersistentDocumentStore& s, IVFIndex& i) : store(s), index(i) {}
+    VectorDatabaseImpl(PersistentDocumentStore& s, HNSWIndex& i) : store(s), index(i) {}
 
     Status Insert(ServerContext* context, const InsertRequest* request, InsertResponse* reply) override {
         try {
@@ -84,7 +84,7 @@ void RunServer() {
     string server_address("0.0.0.0:50051");
     
     PersistentDocumentStore my_store("production.wal", "snapshot.bin");
-    IVFIndex my_index;
+    HNSWIndex my_index;
     
     cout << "Training the IVF Index with initial data...\n";
     vector<Vector> training_data;

@@ -100,7 +100,6 @@ struct SearchResult {
 
 class PersistentDocumentStore {
 private:
-    vector<Document> documents;
     mutable shared_mutex store_mutex;
     
     ofstream wal_file;
@@ -134,6 +133,8 @@ private:
     }
 
 public:
+    vector<Document> documents;
+
     PersistentDocumentStore(const string& w_path, const string& s_path) : wal_path(w_path) {
         load_snapshot(s_path);
         recover_from_wal();
