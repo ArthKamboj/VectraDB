@@ -32,3 +32,23 @@ async def upload_image(category: str = Form(...), file: UploadFile = File(...)):
         return {"status": "success", "db_id": response.id, "category": category}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+@app.post("/search/")
+async def search_image(k: int = Form(5), file: UploadFile = File(...)):
+    image_bytes = await file.read()
+    image = Image.open(io.BytesIO(image_bytes))
+
+    vector_embedding = model.encode(image).tolist()
+
+    request = vectordb_pb2.SearchRequest(
+        query=vectordb_pb2.Vector(elements=vector_embedding),
+        k=k,
+        filter_category=""
+    )
+    
+    try:
+        response = stub.Search(request)
+        results = [{"id": res.id, "distance": res.distance, "category": res.category} for res in response.results]
+        return {"status": "success", "matches": results}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
