@@ -1,8 +1,9 @@
+import os
 import streamlit as st
 import requests
 
 
-API_URL = "http://api-gateway:8000"
+API_URL = os.environ.get("API_URL", "http://localhost:8000")
 
 st.set_page_config(page_title="VectraDB AI", page_icon="🧠", layout="centered")
 
