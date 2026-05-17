@@ -16,6 +16,8 @@ services:
       dockerfile: gateway.Dockerfile
     ports:
       - "8000:8000"
+    volumes:
+      - image_data:/app/uploads
     depends_on:
       - vectradb
     networks:
@@ -29,6 +31,8 @@ services:
       - "8501:8501"
     environment:
       - API_URL=http://api-gateway:8000
+    volumes:
+      - image_data:/app/uploads
     depends_on:
       - api-gateway
     networks:
@@ -39,3 +43,7 @@ services:
 networks:
   vectra-network:
     driver: bridge
+
+
+volumes:
+  image_data:

@@ -3,14 +3,19 @@ from sentence_transformers import SentenceTransformer
 from PIL import Image
 import grpc
 import io
+import os
 import vectordb_pb2
 import vectordb_pb2_grpc
 
 app = FastAPI(title="VectraDB AI Gateway")
 
+os.makedirs("uploads", exist_ok=True)
+
+
 print("Loading AI Vision Model (CLIP)...")
 model = SentenceTransformer('clip-ViT-B-32')
 print("Model loaded successfully.")
+
 
 channel = grpc.insecure_channel('vectradb:50051')
 stub = vectordb_pb2_grpc.VectorDatabaseStub(channel)
@@ -29,6 +34,12 @@ async def upload_image(category: str = Form(...), file: UploadFile = File(...)):
     
     try:
         response = stub.Insert(request)
+        
+        image_path = f"uploads/{response.id}.jpg"
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        image.save(image_path, format="JPEG")
+        
         return {"status": "success", "db_id": response.id, "category": category}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -43,7 +54,7 @@ async def search_image(k: int = Form(5), file: UploadFile = File(...)):
     request = vectordb_pb2.SearchRequest(
         query=vectordb_pb2.Vector(elements=vector_embedding),
         k=k,
-        filter_category=""
+        filter_category="" 
     )
     
     try:

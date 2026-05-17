@@ -45,7 +45,7 @@ with tab_search:
     search_file = st.file_uploader("Upload a query image...", type=["jpg", "jpeg", "png"], key="search")
     k_value = st.slider("Number of results to fetch (k)", min_value=1, max_value=10, value=5)
     
-    if st.button("Run Hardware-Accelerated Search"):
+    if st.button("Run Search"):
         if search_file:
             
             st.image(search_file, caption="Your Query Concept", width=300)
@@ -62,16 +62,23 @@ with tab_search:
                     
                     st.subheader(f"Top {len(matches)} Closest Matches found:")
                     
-                    st.dataframe(
-                        matches,
-                        column_config={
-                            "id": st.column_config.NumberColumn("Document ID", format="%d"),
-                            "distance": st.column_config.NumberColumn("AVX-256 Distance", format="%.4f"),
-                            "category": "Stored Category"
-                        },
-                        hide_index=True,
-                        use_container_width=True
-                    )
+                    cols = st.columns(len(matches))
+                    
+                    for i, match in enumerate(matches):
+                        with cols[i]:
+                            doc_id = match['id']
+                            dist = match['distance']
+                            cat = match['category']
+                            
+                            image_path = f"uploads/{doc_id}.jpg"
+                            
+                            try:
+                                st.image(image_path, use_container_width=True)
+                                st.markdown(f"**ID:** {doc_id}")
+                                st.markdown(f"**Category:** {cat}")
+                                st.markdown(f"**Dist:** `{dist:.4f}`")
+                            except FileNotFoundError:
+                                st.error("Image file not found on disk.")
                 else:
                     st.error("Search failed.")
         else:
