@@ -27,6 +27,8 @@ services:
       dockerfile: ui.Dockerfile
     ports:
       - "8501:8501"
+    environment:
+      - API_URL=http://api-gateway:8000
     depends_on:
       - api-gateway
     networks:
