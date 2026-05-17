@@ -6,6 +6,9 @@
 *.wal
 *.bin
 
+# Environment 
+.env
+
 # Ignore gRPC/Protobuf generated files
 *.pb.cc
 *.pb.h
