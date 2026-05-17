@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+
+  vectradb:
+    build: 
+      context: ./src
+    ports:
+      - "50051:50051"
+    networks:
+      - vectra-network
+
+
+
+  api-gateway:
+    build:
+      context: ./src
+      dockerfile: gateway.Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - vectradb
+    networks:
+      - vectra-network
+
+networks:
+  vectra-network:
+    driver: bridge
