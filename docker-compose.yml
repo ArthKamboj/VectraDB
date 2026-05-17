@@ -21,6 +21,19 @@ services:
     networks:
       - vectra-network
 
+  frontend-ui:
+    build:
+      context: .
+      dockerfile: ui.Dockerfile
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api-gateway
+    networks:
+      - vectra-network
+
+
+
 networks:
   vectra-network:
     driver: bridge
