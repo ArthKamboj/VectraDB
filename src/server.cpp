@@ -31,8 +31,10 @@ public:
         try {
             Vector vec(request->embedding().elements().begin(), request->embedding().elements().end());
             string category = request->category();
+            
+            string user_id = request->user_id(); 
 
-            size_t new_id = store.add(vec, category);
+            size_t new_id = store.add(vec, category, user_id); 
             
             index.add(new_id, vec);
 
@@ -49,6 +51,8 @@ public:
             Vector query(request->query().elements().begin(), request->query().elements().end());
             int k = request->k();
             string filter = request->filter_category();
+            
+            string query_user = request->user_id(); 
 
             auto result_ids = index.search(query, k * 5);
 
@@ -57,6 +61,10 @@ public:
                 if (matched >= k) break;
 
                 const auto& doc = store.documents[id];
+
+                if (doc.user_id != query_user) {
+                    continue;
+                }
 
                 if (!filter.empty() && doc.category != filter) {
                     continue; 
