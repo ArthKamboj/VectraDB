@@ -1,5 +1,5 @@
-# 🧠 VectraDB AI
-**An Enterprise-Grade, Hardware-Accelerated Multi-Tenant Vector Search Engine**
+# VectraDB AI
+### **An Enterprise-Grade, Hardware-Accelerated Multi-Tenant Vector Search Engine**
 
 ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
 ![C++](https://img.shields.io/badge/c++-%2300599C.svg?style=for-the-badge&logo=c%2B%2B&logoColor=white)
@@ -12,7 +12,7 @@ Designed as a SaaS backend, it features logical multi-tenancy, custom disk persi
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 The system is deployed as a 3-tier microservice cluster securely networked via Docker bridge.
 
@@ -72,7 +72,7 @@ The system is deployed as a 3-tier microservice cluster securely networked via D
         +=================================+--------------+==+
 ```
 
-## 🚀 Core Engineering Patterns
+## Core Engineering Patterns
 
 ### 1. Hardware-Accelerated Vector Math (AVX-256)
 Instead of relying on standard loops, the core math engine is written in C++ utilizing raw **Advanced Vector Extensions (AVX)** CPU lanes. It processes 8 floating-point numbers simultaneously, drastically reducing the CPU cycles required to calculate massive multi-dimensional Euclidean distances.
@@ -88,7 +88,7 @@ Instead of relying on standard SQL tables, VectraDB implements a ground-up stora
 ### 4. High Speed Protocol Buffers (gRPC)
 The Python Gateway and C++ Engine communicate exclusively via gRPC. By serializing data into strongly-typed binary streams instead of JSON, the architecture achieves ultra-low latency internal networking, even when transmitting massive 512D float arrays.
 
-## 🛠️ Technology Stack
+## Technology Stack
 | Component | Technology | Purpose |
 |---|---|---|
 | **Frontend UI** | Streamlit, Pillow (PIL) | Responsive Web Dashboard, Image rendering. |
@@ -99,7 +99,7 @@ The Python Gateway and C++ Engine communicate exclusively via gRPC. By serializi
 | **Storage Engine** | C++ Standard FStream | Custom Write-Ahead Log (WAL) and Binary Memory Snapshots. |
 | **Infrastructure** | Docker, Docker Compose | Environment-agnostic containerization and virtual networking. |
 
-## ⚙️ Local Deployment Guide
+## Local Deployment Guide
 
 ### Prerequisites
   * Docker and Docker Compose installed
@@ -127,7 +127,7 @@ The Python Gateway and C++ Engine communicate exclusively via gRPC. By serializi
      
      Open your browser and navigate to `http://localhost:8501`.
 
-## 🧪 Testing the Multi-Tenant Isolation
+## Testing the Multi-Tenant Isolation
 
  **To verify the SaaS security architecture:**
 
@@ -139,7 +139,7 @@ The Python Gateway and C++ Engine communicate exclusively via gRPC. By serializi
 
 Result: The C++ engine will securely isolate the graph, returning only the Cat imagery and completely walling off User A's data.
 
-## 🛑 Infrastructure Management
+## Infrastructure Management
 
 To gracefully spin down the microservices and virtual network:
 
