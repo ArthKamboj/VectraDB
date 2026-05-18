@@ -21,7 +21,10 @@ channel = grpc.insecure_channel('vectradb:50051')
 stub = vectordb_pb2_grpc.VectorDatabaseStub(channel)
 
 @app.post("/upload/")
-async def upload_image(category: str = Form(...), file: UploadFile = File(...)):
+async def upload_image(category: str = Form(...),
+                       user_id : str = Form(...),                       
+                       file: UploadFile = File(...),
+):
     image_bytes = await file.read()
     image = Image.open(io.BytesIO(image_bytes))
 
@@ -29,13 +32,14 @@ async def upload_image(category: str = Form(...), file: UploadFile = File(...)):
 
     request = vectordb_pb2.InsertRequest(
         embedding=vectordb_pb2.Vector(elements=vector_embedding),
-        category=category
+        category=category,
+        user_id=user_id
     )
     
     try:
         response = stub.Insert(request)
         
-        image_path = f"uploads/{response.id}.jpg"
+        image_path = f"uploads/{user_id}_{response.id}.jpg"
         if image.mode != 'RGB':
             image = image.convert('RGB')
         image.save(image_path, format="JPEG")
@@ -45,7 +49,10 @@ async def upload_image(category: str = Form(...), file: UploadFile = File(...)):
         return {"status": "error", "message": str(e)}
 
 @app.post("/search/")
-async def search_image(k: int = Form(5), file: UploadFile = File(...)):
+async def search_image(k: int = Form(5), 
+                       user_id : str = Form(...),
+                       file: UploadFile = File(...)
+):
     image_bytes = await file.read()
     image = Image.open(io.BytesIO(image_bytes))
 
@@ -54,7 +61,8 @@ async def search_image(k: int = Form(5), file: UploadFile = File(...)):
     request = vectordb_pb2.SearchRequest(
         query=vectordb_pb2.Vector(elements=vector_embedding),
         k=k,
-        filter_category="" 
+        filter_category="",
+        user_id=user_id
     )
     
     try:
