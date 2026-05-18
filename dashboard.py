@@ -8,6 +8,10 @@ API_URL = os.environ.get("API_URL", "http://localhost:8000")
 st.set_page_config(page_title="VectraDB AI", page_icon="🧠", layout="centered")
 
 st.title("🧠 VectraDB AI Image Search")
+
+current_user = st.sidebar.text_input("👤 Enter Username", value="guest").strip().lower()
+st.sidebar.markdown(f"**Current Session:** `{current_user}`")
+
 st.markdown("Hardware-Accelerated C++ Vector Database with OpenAI CLIP")
 
 tab_upload, tab_search = st.tabs(["📤 Upload to Database", "🔍 Semantic Search"])
@@ -25,7 +29,7 @@ with tab_upload:
             with st.spinner("AI is extracting 512D concepts..."):
                 
                 files = {"file": (upload_file.name, upload_file.getvalue(), upload_file.type)}
-                data = {"category": upload_category}
+                data = {"category": upload_category, "user_id": current_user}
                 
                 response = requests.post(f"{API_URL}/upload/", files=files, data=data)
                 
@@ -53,7 +57,7 @@ with tab_search:
             with st.spinner("Searching millions of vectors in milliseconds..."):
                 
                 files = {"file": (search_file.name, search_file.getvalue(), search_file.type)}
-                data = {"k": k_value}
+                data = {"k": k_value, "user_id": current_user}
                 
                 response = requests.post(f"{API_URL}/search/", files=files, data=data)
                 
@@ -70,7 +74,7 @@ with tab_search:
                             dist = match['distance']
                             cat = match['category']
                             
-                            image_path = f"uploads/{doc_id}.jpg"
+                            image_path = f"uploads/{current_user}_{doc_id}.jpg"
                             
                             try:
                                 st.image(image_path, use_container_width=True)
