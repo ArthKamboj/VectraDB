@@ -77,6 +77,7 @@ struct Document {
     Vector embedding;
     string category;
     bool is_deleted;
+    string user_id;
 };
 
 enum class Opcode : char {
@@ -105,7 +106,7 @@ private:
     ofstream wal_file;
     string wal_path;
 
-    void log_add(const Vector& vec, const string& category) {
+    void log_add(const Vector& vec, const string& category, const string& user_id) {
         if (!wal_file.is_open()) return;
         
         char op = static_cast<char>(Opcode::ADD);
@@ -118,6 +119,10 @@ private:
         size_t str_len = category.length();
         wal_file.write(reinterpret_cast<const char*>(&str_len), sizeof(str_len));
         wal_file.write(category.c_str(), str_len);
+        
+        size_t uid_len = user_id.length();
+        wal_file.write(reinterpret_cast<const char*>(&uid_len), sizeof(uid_len));
+        wal_file.write(user_id.c_str(), uid_len);
         
         wal_file.flush();
     }
@@ -179,8 +184,13 @@ public:
                 string category(str_len, '\0');
                 in_file.read(&category[0], str_len);
 
+                size_t uid_len;
+                in_file.read(reinterpret_cast<char*>(&uid_len), sizeof(uid_len));
+                string user_id(uid_len, '\0');
+                in_file.read(&user_id[0], uid_len);
+
                 size_t new_id = documents.size();
-                documents.push_back({new_id, vec, category, false});
+                documents.push_back({new_id, vec, category, false, user_id});
             } 
             else if (op == static_cast<char>(Opcode::REMOVE)) {
                 size_t id;
@@ -193,13 +203,14 @@ public:
         cout << "Recovered " << documents.size() << " documents.\n";
     }
 
-    size_t add(const Vector& vec, const string& category) {
+    size_t add(const Vector& vec, const string& category, const string& user_id) {
         unique_lock<shared_mutex> lock(store_mutex);
         
         size_t new_id = documents.size();
-        documents.push_back({new_id, vec, category, false});
         
-        log_add(vec, category);
+        documents.push_back({new_id, vec, category, false, user_id});
+        
+        log_add(vec, category, user_id);
         return new_id;
     }
 
@@ -243,6 +254,11 @@ public:
             doc.category.resize(str_len);
             snap_file.read(&doc.category[0], str_len);
 
+            size_t uid_len;
+            snap_file.read(reinterpret_cast<char*>(&uid_len), sizeof(uid_len));
+            doc.user_id.resize(uid_len);
+            snap_file.read(&doc.user_id[0], uid_len);
+
             documents.push_back(doc);
         }
         cout << "Loaded snapshot containing " << documents.size() << " documents.\n";
@@ -269,6 +285,10 @@ public:
             size_t str_len = doc.category.length();
             snap_file.write(reinterpret_cast<const char*>(&str_len), sizeof(str_len));
             snap_file.write(doc.category.c_str(), str_len);
+
+            size_t uid_len = doc.user_id.length();
+            snap_file.write(reinterpret_cast<const char*>(&uid_len), sizeof(uid_len));
+            snap_file.write(doc.user_id.c_str(), uid_len);
         }
 
         snap_file.flush();
