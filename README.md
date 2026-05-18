@@ -1,10 +1,6 @@
 # VectraDB AI
 ### **An Enterprise-Grade, Hardware-Accelerated Multi-Tenant Vector Search Engine**
 
-![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
-![C++](https://img.shields.io/badge/c++-%2300599C.svg?style=for-the-badge&logo=c%2B%2B&logoColor=white)
-![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
-![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
 
 VectraDB AI is a high-performance, containerized microservice architecture built from scratch. It ingests raw images, extracts their 512-dimensional semantic mathematics using OpenAI's CLIP model, and stores them in a custom C++ hardware-accelerated database for sub-millisecond semantic search.
 
