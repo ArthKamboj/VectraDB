@@ -1,4 +1,4 @@
-# VectraDB AI
+# VectraDB
 ### **An Enterprise-Grade, Hardware-Accelerated Multi-Tenant Vector Search Engine**
 
 
